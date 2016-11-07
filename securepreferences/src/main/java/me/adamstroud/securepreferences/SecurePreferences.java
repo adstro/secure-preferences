@@ -1,5 +1,6 @@
 package me.adamstroud.securepreferences;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
@@ -8,6 +9,8 @@ import android.security.keystore.KeyProperties;
 import android.util.ArraySet;
 import android.util.Base64;
 import android.util.Log;
+
+import com.google.PRNGFixes;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -46,14 +49,23 @@ public class SecurePreferences implements SharedPreferences {
     private static final String ALIAS = "securePreferenceKey";
     private static final int BASE_64_FLAGS = Base64.DEFAULT;
     private static final String CIPHER_TRANSFORMATION = "RSA/ECB/PKCS1Padding";
+
     private final SharedPreferences sharedPreferences;
-    private final KeyStore keystore;
+
+    private static boolean prngFixed = false;
+
+    static {
+        if (!prngFixed) {
+            PRNGFixes.apply();
+            prngFixed = true;
+        }
+    }
 
     public SecurePreferences(SharedPreferences sharedPreferences, Context context) {
         this.sharedPreferences = sharedPreferences;
 
         try {
-            keystore = KeyStore.getInstance(KEYSTORE_PROVIDER);
+            KeyStore keystore = KeyStore.getInstance(KEYSTORE_PROVIDER);
             keystore.load(null);
 
             KeyStore.PrivateKeyEntry entry = (KeyStore.PrivateKeyEntry) keystore.getEntry(ALIAS, null);
@@ -62,6 +74,7 @@ public class SecurePreferences implements SharedPreferences {
                 Calendar end = Calendar.getInstance();
                 end.add(Calendar.YEAR, 100);
 
+                @SuppressLint("InlinedApi")
                 KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, KEYSTORE_PROVIDER);
 
                 KeyPairGeneratorSpec.Builder builder = new KeyPairGeneratorSpec.Builder(context)
@@ -307,7 +320,10 @@ public class SecurePreferences implements SharedPreferences {
          */
         @Override
         public SharedPreferences.Editor putInt(String key, int value) throws SecurePreferencesException {
-            editor.putString(key, encrypt(ByteBuffer.allocate(Integer.BYTES).putInt(value).array()));
+            @SuppressLint("InlinedApi")
+            final int allocationSize = Integer.BYTES;
+
+            editor.putString(key, encrypt(ByteBuffer.allocate(allocationSize).putInt(value).array()));
             return this;
         }
 
@@ -321,7 +337,10 @@ public class SecurePreferences implements SharedPreferences {
          */
         @Override
         public SharedPreferences.Editor putLong(String key, long value) throws SecurePreferencesException {
-            editor.putString(key, encrypt(ByteBuffer.allocate(Long.BYTES).putLong(value).array()));
+            @SuppressLint("InlinedApi")
+            final int allocationSize = Long.BYTES;
+
+            editor.putString(key, encrypt(ByteBuffer.allocate(allocationSize).putLong(value).array()));
             return this;
         }
 
@@ -335,7 +354,10 @@ public class SecurePreferences implements SharedPreferences {
          */
         @Override
         public SharedPreferences.Editor putFloat(String key, float value) throws SecurePreferencesException {
-            editor.putString(key, encrypt(ByteBuffer.allocate(Float.BYTES).putFloat(value).array()));
+            @SuppressLint("InlinedApi")
+            final int allocationSize = Float.BYTES;
+
+            editor.putString(key, encrypt(ByteBuffer.allocate(allocationSize).putFloat(value).array()));
             return this;
         }
 
