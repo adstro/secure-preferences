@@ -45,7 +45,9 @@ import javax.security.auth.x500.X500Principal;
 public class SecurePreferences implements SharedPreferences {
     private static final String TAG = SecurePreferences.class.getSimpleName();
     private static final String KEYSTORE_PROVIDER = "AndroidKeyStore";
-    private static final String CIPHER_PROVIDER = "AndroidOpenSSL";
+    private static final String CIPHER_PROVIDER = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+            ? "AndroidKeyStoreBCWorkaround"
+            : "AndroidOpenSSL";
     private static final String ALIAS = "securePreferenceKey";
     private static final int BASE_64_FLAGS = Base64.DEFAULT;
     private static final String CIPHER_TRANSFORMATION = "RSA/ECB/PKCS1Padding";

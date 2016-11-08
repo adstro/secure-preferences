@@ -5,13 +5,17 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
+import android.util.Log;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.security.KeyStore;
+import java.security.Provider;
+import java.security.Security;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
@@ -32,11 +36,23 @@ import static org.junit.Assert.assertTrue;
  */
 @RunWith(AndroidJUnit4.class)
 public class SecurePreferencesTest {
+    private static final String TAG = SecurePreferencesTest.class.getSimpleName();
     private static final String ALIAS = "testKey";
 
     private KeyStore keyStore;
     private SharedPreferences sharedPreferences;
     private SecurePreferences securePreferences;
+
+    @BeforeClass
+    public static void beforeClass() {
+        for (Provider provider : Security.getProviders()) {
+            Log.d(TAG, "Provider: " + provider.getName());
+
+            for (Provider.Service service : provider.getServices()) {
+                Log.d(TAG, "\t" + service.getAlgorithm());
+            }
+        }
+    }
 
     @Before
     public void setUp() throws Exception {
