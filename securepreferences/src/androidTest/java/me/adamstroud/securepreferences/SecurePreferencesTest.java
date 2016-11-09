@@ -13,11 +13,13 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.nio.ByteBuffer;
 import java.security.KeyStore;
 import java.security.Provider;
 import java.security.Security;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.contains;
@@ -70,6 +72,7 @@ public class SecurePreferencesTest {
 
         assertEquals(0, keyStore.size());
         assertNull(keyStore.getEntry(ALIAS, null));
+        assertTrue(sharedPreferences.edit().clear().commit());
         assertTrue(sharedPreferences.getAll().isEmpty());
         securePreferences = new SecurePreferences(sharedPreferences, appContext);
     }
@@ -165,5 +168,39 @@ public class SecurePreferencesTest {
         for (String value : values) {
             assertThat(actual, not(contains(value)));
         }
+    }
+
+    @Test
+    public void testGetAll() throws Exception {
+        final String stringKey = "stringKey";
+        final String stringValue = "stringValue";
+
+        final String booleanKey = "booleanKey";
+        final boolean booleanValue = true;
+
+        final String intKey = "intKey";
+        final int intValue = Integer.MIN_VALUE;
+
+        final String floatKey = "floatKey";
+        final float floatValue = Float.MIN_VALUE;
+
+        final String longKey = "longKey";
+        final long longValue = Long.MIN_VALUE;
+
+        securePreferences.edit()
+                .putString(stringKey, stringValue)
+                .putBoolean(booleanKey, booleanValue)
+                .putInt(intKey, intValue)
+                .putFloat(floatKey, floatValue)
+                .putLong(longKey, longValue)
+                .commit();
+
+        Map<String, byte[]> decryptedValues = securePreferences.getAll();
+
+        assertThat(ByteBuffer.allocate(Integer.BYTES).put(decryptedValues.get(intKey)).getInt(0), is(equalTo(intValue)));
+        assertThat(ByteBuffer.allocate(Float.BYTES).put(decryptedValues.get(floatKey)).getFloat(0), is(equalTo(floatValue)));
+        assertThat(ByteBuffer.allocate(Long.BYTES).put(decryptedValues.get(longKey)).getLong(0), is(equalTo(longValue)));
+        assertThat(new String(decryptedValues.get(stringKey)), is(equalTo(stringValue)));
+        assertThat(decryptedValues.get(booleanKey)[0] == 1, is(equalTo(booleanValue)));
     }
 }

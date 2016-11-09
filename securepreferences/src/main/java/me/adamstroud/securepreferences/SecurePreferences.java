@@ -27,6 +27,7 @@ import java.security.cert.CertificateException;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -36,6 +37,8 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.security.auth.x500.X500Principal;
+
+import static android.R.attr.key;
 
 /**
  * TODO
@@ -63,6 +66,12 @@ public class SecurePreferences implements SharedPreferences {
         }
     }
 
+    /**
+     * TODO
+     *
+     * @param sharedPreferences
+     * @param context
+     */
     public SecurePreferences(SharedPreferences sharedPreferences, Context context) {
         this.sharedPreferences = sharedPreferences;
 
@@ -127,8 +136,15 @@ public class SecurePreferences implements SharedPreferences {
     }
 
     @Override
-    public Map<String, ?> getAll() {
-        throw new UnsupportedOperationException("Not Yet Implemented");
+    public Map<String, byte[]> getAll() throws SecurePreferencesException {
+        Map<String, String> encryptedPreferences = (Map<String, String>) sharedPreferences.getAll();
+        Map<String, byte[]> decryptedPreferences = new HashMap<>(encryptedPreferences.size());
+
+        for (String key : encryptedPreferences.keySet()) {
+            decryptedPreferences.put(key, decrypt(encryptedPreferences.get(key)));
+        }
+
+        return Collections.unmodifiableMap(decryptedPreferences);
     }
     
     @Override
@@ -236,6 +252,9 @@ public class SecurePreferences implements SharedPreferences {
         }
     }
 
+    /**
+     * TODO
+     */
     public static class SecureEditor implements SharedPreferences.Editor {
         private Editor editor;
 
@@ -275,14 +294,6 @@ public class SecurePreferences implements SharedPreferences {
             }
         }
 
-        /**
-         * TODO
-         *
-         * @param key
-         * @param value
-         * @return
-         * @throws SecurePreferencesException
-         */
         @Override
         public SharedPreferences.Editor putString(String key, String value) throws SecurePreferencesException {
             String ciphertext = null;
@@ -312,14 +323,6 @@ public class SecurePreferences implements SharedPreferences {
             return this;
         }
 
-        /**
-         * TODO
-         *
-         * @param key
-         * @param value
-         * @return
-         * @throws SecurePreferencesException
-         */
         @Override
         public SharedPreferences.Editor putInt(String key, int value) throws SecurePreferencesException {
             @SuppressLint("InlinedApi")
@@ -329,14 +332,6 @@ public class SecurePreferences implements SharedPreferences {
             return this;
         }
 
-        /**
-         * TODO
-         *
-         * @param key
-         * @param value
-         * @return
-         * @throws SecurePreferencesException
-         */
         @Override
         public SharedPreferences.Editor putLong(String key, long value) throws SecurePreferencesException {
             @SuppressLint("InlinedApi")
@@ -346,14 +341,6 @@ public class SecurePreferences implements SharedPreferences {
             return this;
         }
 
-        /**
-         * TODO
-         *
-         * @param key
-         * @param value
-         * @return
-         * @throws SecurePreferencesException
-         */
         @Override
         public SharedPreferences.Editor putFloat(String key, float value) throws SecurePreferencesException {
             @SuppressLint("InlinedApi")
@@ -363,14 +350,6 @@ public class SecurePreferences implements SharedPreferences {
             return this;
         }
 
-        /**
-         * TODO
-         *
-         * @param key
-         * @param value
-         * @return
-         * @throws SecurePreferencesException
-         */
         @Override
         public SharedPreferences.Editor putBoolean(String key, boolean value) throws SecurePreferencesException {
             editor.putString(key, encrypt((value ? (byte) 1 : (byte) 0)));
