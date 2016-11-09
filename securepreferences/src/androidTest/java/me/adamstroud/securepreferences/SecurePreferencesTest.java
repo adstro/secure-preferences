@@ -10,7 +10,9 @@ import android.util.Log;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 
 import java.nio.ByteBuffer;
@@ -44,6 +46,9 @@ public class SecurePreferencesTest {
     private KeyStore keyStore;
     private SharedPreferences sharedPreferences;
     private SecurePreferences securePreferences;
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     @BeforeClass
     public static void beforeClass() {
@@ -171,6 +176,21 @@ public class SecurePreferencesTest {
     }
 
     @Test
+    public void testStringSet_edit() throws Exception {
+        thrown.expect(UnsupportedOperationException.class);
+
+        final String key = "stringSetKey";
+        final Set<String> values = new HashSet<>();
+
+        for (int i = 0; i < 10; i++) {
+            assertTrue(values.add("String" + (i + 1)));
+        }
+
+        securePreferences.edit().putStringSet(key, values).commit();
+        securePreferences.getStringSet(key, null).clear();
+    }
+
+    @Test
     public void testGetAll() throws Exception {
         final String stringKey = "stringKey";
         final String stringValue = "stringValue";
@@ -202,5 +222,12 @@ public class SecurePreferencesTest {
         assertThat(ByteBuffer.allocate(Long.BYTES).put(decryptedValues.get(longKey)).getLong(0), is(equalTo(longValue)));
         assertThat(new String(decryptedValues.get(stringKey)), is(equalTo(stringValue)));
         assertThat(decryptedValues.get(booleanKey)[0] == 1, is(equalTo(booleanValue)));
+    }
+
+    @Test
+    public void testGetAll_edit() throws Exception {
+        thrown.expect(UnsupportedOperationException.class);
+        securePreferences.edit().putLong("key", Long.MAX_VALUE).commit();
+        securePreferences.getAll().clear();
     }
 }

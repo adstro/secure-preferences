@@ -8,7 +8,6 @@ import android.security.KeyPairGeneratorSpec;
 import android.security.keystore.KeyProperties;
 import android.util.ArraySet;
 import android.util.Base64;
-import android.util.Log;
 
 import com.google.PRNGFixes;
 
@@ -104,7 +103,6 @@ public class SecurePreferences implements SharedPreferences {
                 | KeyStoreException
                 | NoSuchProviderException
                 | InvalidAlgorithmParameterException e) {
-            Log.w(TAG, "Could not init", e);
             throw new RuntimeException("Could not init Secure Preferences", e);
         }
     }
@@ -167,8 +165,6 @@ public class SecurePreferences implements SharedPreferences {
             for (String ciphertextValue : ciphertextValues) {
                 values.add(new String(decrypt(ciphertextValue)));
             }
-
-            return values;
         }
 
         return Collections.unmodifiableSet(values);
