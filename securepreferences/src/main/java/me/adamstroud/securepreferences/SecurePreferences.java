@@ -38,8 +38,6 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.security.auth.x500.X500Principal;
 
-import static android.R.attr.key;
-
 /**
  * TODO
  *
