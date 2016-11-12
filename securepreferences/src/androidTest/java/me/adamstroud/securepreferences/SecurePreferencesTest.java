@@ -24,14 +24,12 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Test cases for {@link SecurePreferences}.
@@ -75,17 +73,17 @@ public class SecurePreferencesTest {
             keyStore.deleteEntry(alias);
         }
 
-        assertEquals(0, keyStore.size());
-        assertNull(keyStore.getEntry(ALIAS, null));
-        assertTrue(sharedPreferences.edit().clear().commit());
-        assertTrue(sharedPreferences.getAll().isEmpty());
+        assertThat(keyStore.size(), is(equalTo(0)));
+        assertThat(keyStore.getEntry(ALIAS, null), is(nullValue(KeyStore.Entry.class)));
+        assertThat(sharedPreferences.edit().clear().commit(), is(true));
+        assertThat(sharedPreferences.getAll().isEmpty(), is(true));
         securePreferences = new SecurePreferences(sharedPreferences, appContext);
     }
 
     @After
     public void tearDown() throws Exception {
         keyStore.deleteEntry(ALIAS);
-        assertTrue(sharedPreferences.edit().clear().commit());
+        assertThat(sharedPreferences.edit().clear().commit(), is(true));
     }
 
     @Test
@@ -160,7 +158,7 @@ public class SecurePreferencesTest {
         final Set<String> values = new HashSet<>();
 
         for (int i = 0; i < 10; i++) {
-            assertTrue(values.add("String" + (i + 1)));
+            assertThat(values.add("String" + (i + 1)), is(true));
         }
 
         securePreferences.edit().putStringSet(key, values).commit();
@@ -168,10 +166,10 @@ public class SecurePreferencesTest {
         assertThat(securePreferences.getStringSet(key, null), is(equalTo(values)));
 
         Set<String> actual = sharedPreferences.getStringSet(key, null);
-        assertEquals(values.size(), actual.size());
+        assertThat(actual.size(), is(equalTo(values.size())));
 
         for (String value : values) {
-            assertThat(actual, not(contains(value)));
+            assertThat(actual, not(hasItem(value)));
         }
     }
 
@@ -183,7 +181,7 @@ public class SecurePreferencesTest {
         final Set<String> values = new HashSet<>();
 
         for (int i = 0; i < 10; i++) {
-            assertTrue(values.add("String" + (i + 1)));
+            assertThat(values.add("String" + (i + 1)), is(true));
         }
 
         securePreferences.edit().putStringSet(key, values).commit();
