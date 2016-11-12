@@ -249,8 +249,9 @@ public class SecurePreferences implements SharedPreferences {
     /**
      * TODO
      */
-    public static class SecureEditor implements SharedPreferences.Editor {
-        private Editor editor;
+    /* default */ static class SecureEditor implements SharedPreferences.Editor {
+        private final Map<String, Object> modifications = new HashMap<>();
+        private final Editor editor;
 
         /* default */ SecureEditor(Editor editor) {
             this.editor = editor;
@@ -289,87 +290,114 @@ public class SecurePreferences implements SharedPreferences {
         }
 
         @Override
-        public SharedPreferences.Editor putString(String key, String value) throws SecurePreferencesException {
-            String ciphertext = null;
-
-            if (value != null) {
-                ciphertext = encrypt(value.getBytes());
-            }
-
-            editor.putString(key, ciphertext);
+        public SharedPreferences.Editor putString(String key, String value) {
+            modifications.put(key, value);
             return this;
         }
 
         @Override
-        public SharedPreferences.Editor putStringSet(String key, Set<String> values) throws SecurePreferencesException {
-            if (values == null) {
-                editor.putStringSet(key, null);
-            } else {
-                Set<String> encryptedValues = createSet(values.size());
-
-                for (String value : values) {
-                    encryptedValues.add(encrypt(value.getBytes()));
-                }
-
-                editor.putStringSet(key, encryptedValues);
-            }
-
+        public SharedPreferences.Editor putStringSet(String key, Set<String> values) {
+            modifications.put(key, values);
             return this;
         }
 
         @Override
-        public SharedPreferences.Editor putInt(String key, int value) throws SecurePreferencesException {
-            @SuppressLint("InlinedApi")
-            final int allocationSize = Integer.BYTES;
-
-            editor.putString(key, encrypt(ByteBuffer.allocate(allocationSize).putInt(value).array()));
+        public SharedPreferences.Editor putInt(String key, int value) {
+            modifications.put(key, value);
             return this;
         }
 
         @Override
-        public SharedPreferences.Editor putLong(String key, long value) throws SecurePreferencesException {
-            @SuppressLint("InlinedApi")
-            final int allocationSize = Long.BYTES;
-
-            editor.putString(key, encrypt(ByteBuffer.allocate(allocationSize).putLong(value).array()));
+        public SharedPreferences.Editor putLong(String key, long value) {
+            modifications.put(key, value);
             return this;
         }
 
         @Override
-        public SharedPreferences.Editor putFloat(String key, float value) throws SecurePreferencesException {
-            @SuppressLint("InlinedApi")
-            final int allocationSize = Float.BYTES;
-
-            editor.putString(key, encrypt(ByteBuffer.allocate(allocationSize).putFloat(value).array()));
+        public SharedPreferences.Editor putFloat(String key, float value) {
+            modifications.put(key, value);
             return this;
         }
 
         @Override
-        public SharedPreferences.Editor putBoolean(String key, boolean value) throws SecurePreferencesException {
-            editor.putString(key, encrypt((value ? (byte) 1 : (byte) 0)));
+        public SharedPreferences.Editor putBoolean(String key, boolean value) {
+            modifications.put(key, value);
             return this;
         }
 
         @Override
         public SharedPreferences.Editor remove(String key) {
+            // Underlying editor will call remove() first independent of whether it was called after
+            // a put() method. So, its safe to pass call to delegate here.
             editor.remove(key);
             return this;
         }
 
         @Override
         public SharedPreferences.Editor clear() {
+            // Underlying editor will call clear() first independent of whether it was called after
+            // a put() method. So, its safe to pass call to delegate here.
             editor.clear();
             return this;
         }
 
+        /**
+         * TODO
+         *
+         * @return
+         * @throws SecurePreferencesException
+         */
         @Override
-        public boolean commit() {
+        public boolean commit() throws SecurePreferencesException {
+            processModifications();
             return editor.commit();
         }
 
         @Override
         public void apply() {
-            editor.apply();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    processModifications();
+                    editor.apply();
+                }
+            }).start();
+        }
+
+        private void processModifications() {
+            for (String key : modifications.keySet()) {
+                Object value = modifications.get(key);
+
+                byte[] ciphertextBytes = null;
+
+                if (value == null) {
+                    editor.remove(key);
+                } else if (value instanceof String) {
+                    ciphertextBytes = ((String) value).getBytes();
+                } else if (value instanceof Integer) {
+                    ciphertextBytes = ByteBuffer.allocate(Integer.BYTES).putInt((Integer) value).array();
+                } else if (value instanceof Long) {
+                    ciphertextBytes = ByteBuffer.allocate(Long.BYTES).putLong((Long) value).array();
+                } else if (value instanceof Float) {
+                    ciphertextBytes = ByteBuffer.allocate(Float.BYTES).putFloat((Float) value).array();
+                } else if (value instanceof  Boolean) {
+                    ciphertextBytes = new byte[] {((Boolean) value ? (byte) 1 : (byte) 0)};
+                } else if (value instanceof Set) {
+                    Set<String> values = (Set) value;
+
+                    Set<String> encryptedValues = createSet(values.size());
+
+                    for (String stringValue : values) {
+                        encryptedValues.add(encrypt(stringValue.getBytes()));
+                    }
+
+                    editor.putStringSet(key, encryptedValues);
+                }
+
+                if (ciphertextBytes != null) {
+                    editor.putString(key, encrypt(ciphertextBytes));
+                }
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ package me.adamstroud.securepreferences;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
@@ -23,15 +24,17 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Test cases for {@link SecurePreferences}.
@@ -75,17 +78,17 @@ public class SecurePreferencesTest {
             keyStore.deleteEntry(alias);
         }
 
-        assertEquals(0, keyStore.size());
-        assertNull(keyStore.getEntry(ALIAS, null));
-        assertTrue(sharedPreferences.edit().clear().commit());
-        assertTrue(sharedPreferences.getAll().isEmpty());
+        assertThat(keyStore.size(), is(equalTo(0)));
+        assertThat(keyStore.getEntry(ALIAS, null), is(nullValue(KeyStore.Entry.class)));
+        assertThat(sharedPreferences.edit().clear().commit(), is(true));
+        assertThat(sharedPreferences.getAll().isEmpty(), is(true));
         securePreferences = new SecurePreferences(sharedPreferences, appContext);
     }
 
     @After
     public void tearDown() throws Exception {
         keyStore.deleteEntry(ALIAS);
-        assertTrue(sharedPreferences.edit().clear().commit());
+        assertThat(sharedPreferences.edit().clear().commit(), is(true));
     }
 
     @Test
@@ -160,7 +163,7 @@ public class SecurePreferencesTest {
         final Set<String> values = new HashSet<>();
 
         for (int i = 0; i < 10; i++) {
-            assertTrue(values.add("String" + (i + 1)));
+            assertThat(values.add("String" + (i + 1)), is(true));
         }
 
         securePreferences.edit().putStringSet(key, values).commit();
@@ -168,10 +171,11 @@ public class SecurePreferencesTest {
         assertThat(securePreferences.getStringSet(key, null), is(equalTo(values)));
 
         Set<String> actual = sharedPreferences.getStringSet(key, null);
-        assertEquals(values.size(), actual.size());
+
+        assertThat(values.size(), is(equalTo(actual.size())));
 
         for (String value : values) {
-            assertThat(actual, not(contains(value)));
+            assertThat(actual, not(hasItem(value)));
         }
     }
 
@@ -183,11 +187,26 @@ public class SecurePreferencesTest {
         final Set<String> values = new HashSet<>();
 
         for (int i = 0; i < 10; i++) {
-            assertTrue(values.add("String" + (i + 1)));
+            assertThat(values.add("String" + (i + 1)), is(true));
         }
 
         securePreferences.edit().putStringSet(key, values).commit();
         securePreferences.getStringSet(key, null).clear();
+    }
+
+    @Test
+    public void testStringSet_putNull() throws Exception {
+        final String key = "stringSetKey";
+        final Set<String> values = new HashSet<>();
+
+        for (int i = 0; i < 10; i++) {
+            assertThat(values.add("String" + (i + 1)), is(true));
+        }
+
+        securePreferences.edit().putStringSet(key, values).commit();
+        assertThat(sharedPreferences.contains(key), is(true));
+        securePreferences.edit().putStringSet(key, null).commit();
+        assertThat(sharedPreferences.contains(key), is(false));
     }
 
     @Test
@@ -229,5 +248,41 @@ public class SecurePreferencesTest {
         thrown.expect(UnsupportedOperationException.class);
         securePreferences.edit().putLong("key", Long.MAX_VALUE).commit();
         securePreferences.getAll().clear();
+    }
+
+    @Test
+    public void testApply() throws Exception {
+        final Lock lock = new ReentrantLock();
+        final Condition callback = lock.newCondition();
+        final String key = "key";
+        final String value = "value";
+        final SharedPreferences.OnSharedPreferenceChangeListener listener = new SharedPreferences.OnSharedPreferenceChangeListener() {
+            @Override
+            public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
+                assertThat(Thread.currentThread(), is(equalTo(Looper.getMainLooper().getThread())));
+                assertThat(sharedPreferences.getString(key, null), is(not(equalTo(value))));
+                assertThat(securePreferences.getString(key, null), is(equalTo(value)));
+
+                lock.lock();
+                try {
+                    callback.signalAll();
+                } finally {
+                    lock.unlock();
+                }
+            }
+        };
+
+        lock.lock();
+
+        try {
+            sharedPreferences.registerOnSharedPreferenceChangeListener(listener);
+            securePreferences.edit().putString(key, value).apply();
+
+            assertThat(callback.await(30, TimeUnit.SECONDS), is(true));
+        } finally {
+            lock.unlock();
+        }
+
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(listener);
     }
 }
