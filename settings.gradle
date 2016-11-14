@@ -1,1 +1,1 @@
-include ':example', ':securepreferences'
+include ':sample', ':library'
