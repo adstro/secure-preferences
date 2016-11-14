@@ -24,8 +24,6 @@ import android.security.keystore.KeyProperties;
 import android.util.ArraySet;
 import android.util.Base64;
 
-import com.google.PRNGFixes;
-
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -51,6 +49,8 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.security.auth.x500.X500Principal;
+
+import me.adamstroud.prngfixes.PRNGFixes;
 
 /**
  * TODO
